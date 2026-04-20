@@ -23,6 +23,16 @@ public class AIAgent : MonoBehaviour
     [Tooltip("How long to wait before picking the next station after finishing work")]
     public float idleDelay = 1f;
 
+    [Header("Agent Values (0–100)")]
+    [Tooltip("Increased by visiting X stations")]
+    public float valueX = 0f;
+
+    [Tooltip("Increased by visiting Y stations")]
+    public float valueY = 0f;
+
+    [Tooltip("Increased by visiting Z stations")]
+    public float valueZ = 0f;
+
     [Header("Visual Feedback")]
     [Tooltip("Color while moving")]
     public Color movingColor = Color.blue;
@@ -43,8 +53,15 @@ public class AIAgent : MonoBehaviour
     private AgentState currentState = AgentState.Idle;
     private Station currentStation;
     private Renderer agentRenderer;
+    private LineRenderer selectionRing;
 
     private static Station[] allStations; // shared across all agents for efficiency
+
+    // Selection ring appearance
+    private const int   RING_SEGMENTS = 40;
+    private const float RING_RADIUS   = 0.55f; // slightly wider than the agent capsule
+    private const float RING_WIDTH    = 0.07f;
+    private const float RING_Y_OFFSET = -0.45f; // local Y — sits just above the floor
 
     // -----------------------------------------------------------------------
     // Unity Lifecycle
@@ -59,6 +76,7 @@ public class AIAgent : MonoBehaviour
         if (allStations == null || allStations.Length == 0)
             allStations = FindObjectsByType<Station>(FindObjectsSortMode.None);
 
+        BuildSelectionRing();
         SetColor(idleColor);
         StartCoroutine(AgentRoutine());
     }
@@ -100,6 +118,7 @@ public class AIAgent : MonoBehaviour
 
                     if (currentStation != null)
                     {
+                        ApplyStationEffect(currentStation);
                         currentStation.Release();
                         currentStation = null;
                     }
@@ -150,6 +169,85 @@ public class AIAgent : MonoBehaviour
             // Race condition: another agent grabbed it — try again next idle cycle
             currentState = AgentState.Idle;
         }
+    }
+
+    // -----------------------------------------------------------------------
+    // Helpers
+    // -----------------------------------------------------------------------
+
+    /// <summary>
+    /// Increases the agent value that matches the station's type, capped at 100.
+    /// </summary>
+    private void ApplyStationEffect(Station station)
+    {
+        switch (station.stationType)
+        {
+            case StationType.X:
+                valueX = Mathf.Clamp(valueX + station.valueIncrease, 0f, 100f);
+                break;
+            case StationType.Y:
+                valueY = Mathf.Clamp(valueY + station.valueIncrease, 0f, 100f);
+                break;
+            case StationType.Z:
+                valueZ = Mathf.Clamp(valueZ + station.valueIncrease, 0f, 100f);
+                break;
+        }
+
+        Debug.Log($"[{name}] Visited {station.stationType} station — X:{valueX:F0}  Y:{valueY:F0}  Z:{valueZ:F0}");
+    }
+
+    // -----------------------------------------------------------------------
+    // Selection
+    // -----------------------------------------------------------------------
+
+    /// <summary>
+    /// Called by SelectionManager to show or hide this agent's selection ring.
+    /// </summary>
+    public void SetSelected(bool selected)
+    {
+        if (selectionRing != null)
+            selectionRing.gameObject.SetActive(selected);
+    }
+
+    /// <summary>
+    /// Creates a green circle ring as a child of this agent using a LineRenderer.
+    /// Because it is a child, it follows the agent automatically with no extra code.
+    /// </summary>
+    private void BuildSelectionRing()
+    {
+        var ringGo = new GameObject("SelectionRing");
+        ringGo.transform.SetParent(transform);
+        ringGo.transform.localPosition = new Vector3(0f, RING_Y_OFFSET, 0f);
+        ringGo.transform.localRotation = Quaternion.identity;
+
+        selectionRing = ringGo.AddComponent<LineRenderer>();
+        selectionRing.useWorldSpace  = false;
+        selectionRing.loop           = true;
+        selectionRing.positionCount  = RING_SEGMENTS;
+        selectionRing.startWidth     = RING_WIDTH;
+        selectionRing.endWidth       = RING_WIDTH;
+        selectionRing.shadowCastingMode = UnityEngine.Rendering.ShadowCastingMode.Off;
+        selectionRing.receiveShadows = false;
+
+        // URP-compatible unlit green material
+        var shader = Shader.Find("Universal Render Pipeline/Unlit")
+                  ?? Shader.Find("Unlit/Color");
+        var mat = new Material(shader);
+        mat.SetColor("_BaseColor", Color.green);
+        mat.color = Color.green;
+        selectionRing.material = mat;
+
+        // Plot the circle points in local space
+        for (int i = 0; i < RING_SEGMENTS; i++)
+        {
+            float angle = i * Mathf.PI * 2f / RING_SEGMENTS;
+            selectionRing.SetPosition(i, new Vector3(
+                Mathf.Cos(angle) * RING_RADIUS,
+                0f,
+                Mathf.Sin(angle) * RING_RADIUS));
+        }
+
+        ringGo.SetActive(false); // hidden until the agent is selected
     }
 
     // -----------------------------------------------------------------------

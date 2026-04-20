@@ -48,20 +48,29 @@ public static class SceneBuilder
         BuildCorridor(root.transform, "Corridor_AC",
             origin: new Vector3(doorOff, 0, ROOM), lx: DOOR, lz: GAP, horizontal: false);
 
-        // ── Stations ──────────────────────────────────────────────────────────
-        float roomBx = ROOM + GAP; // = 15  (Room B world origin X)
-        float roomCz = ROOM + GAP; // = 15  (Room C world origin Z)
-
-        PlaceStation(root.transform, new Vector3(2.5f,          0.05f, 2.5f         ), "Station 1"); // Room A
-        PlaceStation(root.transform, new Vector3(7.5f,          0.05f, 7.5f         ), "Station 2"); // Room A
-        PlaceStation(root.transform, new Vector3(roomBx + 2.5f, 0.05f, 2.5f         ), "Station 3"); // Room B
-        PlaceStation(root.transform, new Vector3(roomBx + 7.5f, 0.05f, 7.5f         ), "Station 4"); // Room B
-        PlaceStation(root.transform, new Vector3(2.5f,          0.05f, roomCz + 2.5f), "Station 5"); // Room C
+        // ── Station Spawner ───────────────────────────────────────────────────
+        // Stations are no longer hardcoded here — they're driven by station_layout.json.
+        // The StationSpawner component reads that file at runtime and instantiates prefabs.
+        // After running Build Scene, open the StationSpawner GameObject in the Inspector
+        // and drag your prefabs from Assets/Prefabs into the Station Types list.
+        var spawnerGo = new GameObject("Station Spawner");
+        spawnerGo.transform.SetParent(root.transform);
+        spawnerGo.AddComponent<StationSpawner>();
 
         // ── Agents ────────────────────────────────────────────────────────────
         PlaceAgent(root.transform, new Vector3(3f, 0.5f, 3f), "Agent 1");
         PlaceAgent(root.transform, new Vector3(7f, 0.5f, 3f), "Agent 2");
         PlaceAgent(root.transform, new Vector3(5f, 0.5f, 6f), "Agent 3");
+
+        // ── Selection Manager ─────────────────────────────────────────────────
+        var selGo = new GameObject("Selection Manager");
+        selGo.transform.SetParent(root.transform);
+        selGo.AddComponent<SelectionManager>();
+
+        // ── Agent Info UI ─────────────────────────────────────────────────────
+        var uiGo = new GameObject("Agent Info UI");
+        uiGo.transform.SetParent(root.transform);
+        uiGo.AddComponent<AgentInfoUI>();
 
         // ── NavMesh ───────────────────────────────────────────────────────────
         var nmGo = new GameObject("NavMesh Surface");
@@ -171,18 +180,7 @@ public static class SceneBuilder
         }
     }
 
-    // ── Stations & Agents ────────────────────────────────────────────────────
-    static void PlaceStation(Transform parent, Vector3 worldPos, string sName)
-    {
-        var s = GameObject.CreatePrimitive(PrimitiveType.Cylinder);
-        s.name = sName;
-        s.transform.SetParent(parent);
-        s.transform.position   = worldPos;
-        s.transform.localScale = new Vector3(1.0f, 0.08f, 1.0f); // wider disc, clearly visible from top
-        s.AddComponent<Station>();
-        Colorize(s, new Color(1f, 0.55f, 0.05f)); // orange
-    }
-
+    // ── Agents ───────────────────────────────────────────────────────────────
     static void PlaceAgent(Transform parent, Vector3 worldPos, string aName)
     {
         var a = GameObject.CreatePrimitive(PrimitiveType.Capsule);

@@ -1,11 +1,24 @@
 using UnityEngine;
 
 /// <summary>
+/// The type of value this station provides to visiting agents.
+/// Must be set in the Inspector on each station prefab.
+/// </summary>
+public enum StationType { X, Y, Z }
+
+/// <summary>
 /// Represents a workstation that AI agents can visit and occupy.
 /// Attach this to any GameObject you want to act as a station.
 /// </summary>
 public class Station : MonoBehaviour
 {
+    [Header("Station Type")]
+    [Tooltip("Which agent value this station increases when visited.")]
+    public StationType stationType = StationType.X;
+
+    [Tooltip("How much this station increases the matching agent value per visit (0–100 scale).")]
+    public float valueIncrease = 10f;
+
     [Header("Settings")]
     [Tooltip("How close the agent needs to be to count as 'arrived'")]
     public float arrivalRadius = 0.8f;
@@ -35,6 +48,5 @@ public class Station : MonoBehaviour
     {
         Gizmos.color = IsOccupied ? Color.red : Color.green;
         Gizmos.DrawWireSphere(transform.position, arrivalRadius);
-        Gizmos.DrawIcon(transform.position + Vector3.up * 0.5f, "sv_icon_dot3_pix16_gizmo", true);
     }
 }

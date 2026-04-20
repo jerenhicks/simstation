@@ -1,0 +1,10 @@
+{
+  "stations": [
+    { "id": "x_station_a1", "type": "X_Station", "x": 2.5, "y": 0.05, "z": 2.5 },
+    { "id": "y_station_a2", "type": "Y_Station", "x": 7.5, "y": 0.05, "z": 7.5 },
+    { "id": "y_station_b1", "type": "Y_Station", "x": 17.5, "y": 0.05, "z": 2.5 },
+    { "id": "z_station_b2", "type": "Z_Station", "x": 22.5, "y": 0.05, "z": 7.5 },
+    { "id": "z_station_c1", "type": "Z_Station", "x": 2.5,  "y": 0.05, "z": 17.5 },
+    { "id": "x_station_c2", "type": "X_Station", "x": 7.5,  "y": 0.05, "z": 22.5 }
+  ]
+}
