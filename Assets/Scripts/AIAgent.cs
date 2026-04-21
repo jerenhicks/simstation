@@ -33,6 +33,10 @@ public class AIAgent : MonoBehaviour
     [Tooltip("Increased by visiting Z CrewConsoles")]
     public float valueZ = 0f;
 
+    [Header("Wandering")]
+    [Tooltip("Radius (in world units) around the agent to pick a random wander point while idle")]
+    public float wanderRadius = 4f;
+
     [Header("Visual Feedback")]
     [Tooltip("Color while moving")]
     public Color movingColor = Color.blue;
@@ -69,6 +73,11 @@ public class AIAgent : MonoBehaviour
 
     private void Start()
     {
+        var all = FindObjectsByType<CrewConsole>(FindObjectsSortMode.None);
+        Debug.Log($"Total CrewConsoles found: {all.Length}");
+        foreach (var c in all)
+            Debug.Log($"  {c.name}  instanceID:{c.GetInstanceID()}  pos:{c.transform.position}");
+
         navAgent = GetComponent<NavMeshAgent>();
         agentRenderer = GetComponentInChildren<Renderer>();
 
@@ -93,6 +102,21 @@ public class AIAgent : MonoBehaviour
             {
                 case AgentState.Idle:
                     SetColor(idleColor);
+
+                    // Walk to a random nearby point so the agent looks like it's
+                    // moving around rather than standing still between tasks.
+                    if (TryGetWanderDestination(out Vector3 wanderTarget))
+                    {
+                        navAgent.SetDestination(wanderTarget);
+
+                        // Wait until arrived, or bail if the path turns invalid.
+                        yield return new WaitUntil(() =>
+                            !navAgent.pathPending &&
+                            (navAgent.remainingDistance <= navAgent.stoppingDistance + 0.1f ||
+                             navAgent.pathStatus == NavMeshPathStatus.PathInvalid));
+                    }
+
+                    // Brief pause at the wander destination before seeking a console.
                     yield return new WaitForSeconds(idleDelay);
                     TryPickCrewConsole();
                     break;
@@ -140,11 +164,18 @@ public class AIAgent : MonoBehaviour
         // Refresh list in case CrewConsoles were added/removed at runtime
         allCrewConsoles = FindObjectsByType<CrewConsole>(FindObjectsSortMode.None);
 
-        // Build a list of unoccupied CrewConsoles, excluding the one we just left
+        // Build a list of unreserved CrewConsoles that this agent can actually reach.
+        // CalculatePath checks the NavMesh without moving the agent — PathComplete means
+        // a full route exists. Consoles outside the room (off the NavMesh) return
+        // PathInvalid or PathPartial and are excluded.
         var available = new List<CrewConsole>();
+        var path = new NavMeshPath();
         foreach (var CrewConsole in allCrewConsoles)
         {
-            if (!CrewConsole.IsOccupied)
+            if (CrewConsole.Reserved) continue;
+
+            navAgent.CalculatePath(CrewConsole.transform.position, path);
+            if (path.status == NavMeshPathStatus.PathComplete)
                 available.Add(CrewConsole);
         }
 
@@ -158,8 +189,12 @@ public class AIAgent : MonoBehaviour
         // Pick randomly from available CrewConsoles
         CrewConsole target = available[Random.Range(0, available.Count)];
 
-        if (target.TryOccupy())
+         Debug.Log($"[{name}]  Attempting to reserve CrewConsole {target.name}. Current reserved state: {target.Reserved}");
+
+        if (target.TryReserve())
         {
+            Debug.Log($"[{name}]  Successfully reserved CrewConsole {target.name}. Current reserved state: {target.Reserved}");
+            //target.Reserved = true;
             currentCrewConsole = target;
             navAgent.SetDestination(target.transform.position);
             currentState = AgentState.MovingToCrewConsole;
@@ -248,6 +283,45 @@ public class AIAgent : MonoBehaviour
         }
 
         ringGo.SetActive(false); // hidden until the agent is selected
+    }
+
+    // -----------------------------------------------------------------------
+    // Wandering
+    // -----------------------------------------------------------------------
+
+    /// <summary>
+    /// Picks a random point on the NavMesh within wanderRadius of the agent's
+    /// current position. Tries up to 8 candidates and returns the first one that
+    /// has a fully reachable path. Returns false if nothing suitable is found
+    /// (e.g. the agent is in a very small space), in which case the agent simply
+    /// waits in place before looking for a console.
+    /// </summary>
+    private bool TryGetWanderDestination(out Vector3 result)
+    {
+        var path = new NavMeshPath();
+
+        for (int i = 0; i < 8; i++)
+        {
+            // Random direction at a random distance up to wanderRadius
+            Vector3 randomOffset = Random.insideUnitSphere * wanderRadius;
+            randomOffset.y = 0f; // keep it flat
+            Vector3 candidate = transform.position + randomOffset;
+
+            // Snap the candidate onto the nearest NavMesh surface
+            if (NavMesh.SamplePosition(candidate, out NavMeshHit hit, wanderRadius, NavMesh.AllAreas))
+            {
+                // Confirm the agent can actually walk there
+                navAgent.CalculatePath(hit.position, path);
+                if (path.status == NavMeshPathStatus.PathComplete)
+                {
+                    result = hit.position;
+                    return true;
+                }
+            }
+        }
+
+        result = transform.position;
+        return false;
     }
 
     // -----------------------------------------------------------------------

@@ -24,6 +24,7 @@ public class CrewConsole : MonoBehaviour
     public float arrivalRadius = 0.8f;
 
     public bool IsOccupied { get; private set; }
+    public bool Reserved { get; private set; }
 
     /// <summary>
     /// Attempt to claim this console. Returns true if successful, false if already occupied.
@@ -41,7 +42,17 @@ public class CrewConsole : MonoBehaviour
     public void Release()
     {
         IsOccupied = false;
+        Reserved = false;
+
     }
+
+    public bool TryReserve()
+    {
+        if (Reserved) return false;
+        Reserved = true;
+        return true;
+    }
+
 
     // Visual feedback in the Scene view (not visible in game)
     private void OnDrawGizmos()
