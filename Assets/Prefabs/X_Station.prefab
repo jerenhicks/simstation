@@ -12,7 +12,7 @@ GameObject:
   - component: {fileID: 7285230251397056032}
   - component: {fileID: 551558387354405084}
   - component: {fileID: 6970161267994342415}
-  - component: {fileID: 6798838023653053270}
+  - component: {fileID: 26239438565345472}
   m_Layer: 0
   m_Name: X_Station
   m_TagString: Untagged
@@ -115,7 +115,7 @@ MeshRenderer:
   m_SortingOrder: 0
   m_MaskInteraction: 0
   m_AdditionalVertexStreams: {fileID: 0}
---- !u!114 &6798838023653053270
+--- !u!114 &26239438565345472
 MonoBehaviour:
   m_ObjectHideFlags: 0
   m_CorrespondingSourceObject: {fileID: 0}
@@ -124,7 +124,9 @@ MonoBehaviour:
   m_GameObject: {fileID: 5048665141824817418}
   m_Enabled: 1
   m_EditorHideFlags: 0
-  m_Script: {fileID: 11500000, guid: a9889acd3c0e8ab4c9fb60df6e52b940, type: 3}
+  m_Script: {fileID: 11500000, guid: 34139891de5a41f43ae9f4472501e24b, type: 3}
   m_Name: 
-  m_EditorClassIdentifier: Assembly-CSharp::Station
+  m_EditorClassIdentifier: Assembly-CSharp::CrewConsole
+  consoleType: 0
+  valueIncrease: 10
   arrivalRadius: 0.8

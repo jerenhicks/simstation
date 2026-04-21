@@ -12,7 +12,6 @@ GameObject:
   - component: {fileID: 1581808941287374950}
   - component: {fileID: 65398312027990937}
   - component: {fileID: 2097431216743242465}
-  - component: {fileID: 8420183589512079165}
   m_Layer: 0
   m_Name: Y_Station
   m_TagString: Untagged
@@ -115,18 +114,3 @@ MeshRenderer:
   m_SortingOrder: 0
   m_MaskInteraction: 0
   m_AdditionalVertexStreams: {fileID: 0}
---- !u!114 &8420183589512079165
-MonoBehaviour:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 1311916004071961940}
-  m_Enabled: 1
-  m_EditorHideFlags: 0
-  m_Script: {fileID: 11500000, guid: a9889acd3c0e8ab4c9fb60df6e52b940, type: 3}
-  m_Name: 
-  m_EditorClassIdentifier: Assembly-CSharp::Station
-  stationType: 1
-  valueIncrease: 10
-  arrivalRadius: 0.8

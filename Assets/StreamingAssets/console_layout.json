@@ -1,0 +1,10 @@
+{
+  "consoles": [
+    { "id": "x_console_a1", "type": "X_Console", "x": 2.5, "y": 0.05, "z": 2.5 },
+    { "id": "y_console_a2", "type": "Y_Console", "x": 7.5, "y": 0.05, "z": 7.5 },
+    { "id": "y_console_b1", "type": "Y_Console", "x": 17.5, "y": 0.05, "z": 2.5 },
+    { "id": "z_console_b2", "type": "Z_Console", "x": 22.5, "y": 0.05, "z": 7.5 },
+    { "id": "z_console_c1", "type": "Z_Console", "x": 2.5,  "y": 0.05, "z": 17.5 },
+    { "id": "x_console_c2", "type": "X_Console", "x": 7.5,  "y": 0.05, "z": 22.5 }
+  ]
+}

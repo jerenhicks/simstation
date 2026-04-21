@@ -4,7 +4,7 @@ using UnityEngine;
 using UnityEngine.AI;
 
 /// <summary>
-/// Simple AI agent that wanders between stations, occupies one at a time,
+/// Simple AI agent that wanders between CrewConsoles, occupies one at a time,
 /// waits to simulate "doing work", then moves on.
 ///
 /// Requires: NavMeshAgent component on the same GameObject.
@@ -17,27 +17,27 @@ public class AIAgent : MonoBehaviour
     // -----------------------------------------------------------------------
 
     [Header("Behavior")]
-    [Tooltip("How many seconds the agent spends 'working' at a station")]
+    [Tooltip("How many seconds the agent spends 'working' at a CrewConsole")]
     public float workDuration = 3f;
 
-    [Tooltip("How long to wait before picking the next station after finishing work")]
+    [Tooltip("How long to wait before picking the next CrewConsole after finishing work")]
     public float idleDelay = 1f;
 
     [Header("Agent Values (0–100)")]
-    [Tooltip("Increased by visiting X stations")]
+    [Tooltip("Increased by visiting X CrewConsoles")]
     public float valueX = 0f;
 
-    [Tooltip("Increased by visiting Y stations")]
+    [Tooltip("Increased by visiting Y CrewConsoles")]
     public float valueY = 0f;
 
-    [Tooltip("Increased by visiting Z stations")]
+    [Tooltip("Increased by visiting Z CrewConsoles")]
     public float valueZ = 0f;
 
     [Header("Visual Feedback")]
     [Tooltip("Color while moving")]
     public Color movingColor = Color.blue;
 
-    [Tooltip("Color while working at a station")]
+    [Tooltip("Color while working at a CrewConsole")]
     public Color workingColor = Color.yellow;
 
     [Tooltip("Color while idle / waiting")]
@@ -47,15 +47,15 @@ public class AIAgent : MonoBehaviour
     // Internal State
     // -----------------------------------------------------------------------
 
-    private enum AgentState { Idle, MovingToStation, WorkingAtStation }
+    private enum AgentState { Idle, MovingToCrewConsole, WorkingAtCrewConsole }
 
     private NavMeshAgent navAgent;
     private AgentState currentState = AgentState.Idle;
-    private Station currentStation;
+    private CrewConsole currentCrewConsole;
     private Renderer agentRenderer;
     private LineRenderer selectionRing;
 
-    private static Station[] allStations; // shared across all agents for efficiency
+    private static CrewConsole[] allCrewConsoles; // shared across all agents for efficiency
 
     // Selection ring appearance
     private const int   RING_SEGMENTS = 40;
@@ -72,9 +72,9 @@ public class AIAgent : MonoBehaviour
         navAgent = GetComponent<NavMeshAgent>();
         agentRenderer = GetComponentInChildren<Renderer>();
 
-        // Cache all stations once (all agents share this reference)
-        if (allStations == null || allStations.Length == 0)
-            allStations = FindObjectsByType<Station>(FindObjectsSortMode.None);
+        // Cache all CrewConsoles once (all agents share this reference)
+        if (allCrewConsoles == null || allCrewConsoles.Length == 0)
+            allCrewConsoles = FindObjectsByType<CrewConsole>(FindObjectsSortMode.None);
 
         BuildSelectionRing();
         SetColor(idleColor);
@@ -94,10 +94,10 @@ public class AIAgent : MonoBehaviour
                 case AgentState.Idle:
                     SetColor(idleColor);
                     yield return new WaitForSeconds(idleDelay);
-                    TryPickStation();
+                    TryPickCrewConsole();
                     break;
 
-                case AgentState.MovingToStation:
+                case AgentState.MovingToCrewConsole:
                     SetColor(movingColor);
 
                     // Wait until NavMesh path is calculated and agent is close enough
@@ -105,10 +105,10 @@ public class AIAgent : MonoBehaviour
                         !navAgent.pathPending &&
                         navAgent.remainingDistance <= navAgent.stoppingDistance + 0.1f);
 
-                    currentState = AgentState.WorkingAtStation;
+                    currentState = AgentState.WorkingAtCrewConsole;
                     break;
 
-                case AgentState.WorkingAtStation:
+                case AgentState.WorkingAtCrewConsole:
                     SetColor(workingColor);
                     navAgent.isStopped = true;
 
@@ -116,11 +116,11 @@ public class AIAgent : MonoBehaviour
 
                     navAgent.isStopped = false;
 
-                    if (currentStation != null)
+                    if (currentCrewConsole != null)
                     {
-                        ApplyStationEffect(currentStation);
-                        currentStation.Release();
-                        currentStation = null;
+                        ApplyCrewConsoleEffect(currentCrewConsole);
+                        currentCrewConsole.Release();
+                        currentCrewConsole = null;
                     }
 
                     currentState = AgentState.Idle;
@@ -132,37 +132,37 @@ public class AIAgent : MonoBehaviour
     }
 
     // -----------------------------------------------------------------------
-    // Station Selection
+    // CrewConsole Selection
     // -----------------------------------------------------------------------
 
-    private void TryPickStation()
+    private void TryPickCrewConsole()
     {
-        // Refresh list in case stations were added/removed at runtime
-        allStations = FindObjectsByType<Station>(FindObjectsSortMode.None);
+        // Refresh list in case CrewConsoles were added/removed at runtime
+        allCrewConsoles = FindObjectsByType<CrewConsole>(FindObjectsSortMode.None);
 
-        // Build a list of unoccupied stations, excluding the one we just left
-        var available = new List<Station>();
-        foreach (var station in allStations)
+        // Build a list of unoccupied CrewConsoles, excluding the one we just left
+        var available = new List<CrewConsole>();
+        foreach (var CrewConsole in allCrewConsoles)
         {
-            if (!station.IsOccupied)
-                available.Add(station);
+            if (!CrewConsole.IsOccupied)
+                available.Add(CrewConsole);
         }
 
         if (available.Count == 0)
         {
-            // All stations busy — stay idle and try again after delay
+            // All CrewConsoles busy — stay idle and try again after delay
             currentState = AgentState.Idle;
             return;
         }
 
-        // Pick randomly from available stations
-        Station target = available[Random.Range(0, available.Count)];
+        // Pick randomly from available CrewConsoles
+        CrewConsole target = available[Random.Range(0, available.Count)];
 
         if (target.TryOccupy())
         {
-            currentStation = target;
+            currentCrewConsole = target;
             navAgent.SetDestination(target.transform.position);
-            currentState = AgentState.MovingToStation;
+            currentState = AgentState.MovingToCrewConsole;
         }
         else
         {
@@ -176,24 +176,24 @@ public class AIAgent : MonoBehaviour
     // -----------------------------------------------------------------------
 
     /// <summary>
-    /// Increases the agent value that matches the station's type, capped at 100.
+    /// Increases the agent value that matches the CrewConsole's type, capped at 100.
     /// </summary>
-    private void ApplyStationEffect(Station station)
+    private void ApplyCrewConsoleEffect(CrewConsole CrewConsole)
     {
-        switch (station.stationType)
+        switch (CrewConsole.CrewConsoleType)
         {
-            case StationType.X:
-                valueX = Mathf.Clamp(valueX + station.valueIncrease, 0f, 100f);
+            case CrewConsoleType.X:
+                valueX = Mathf.Clamp(valueX + CrewConsole.valueIncrease, 0f, 100f);
                 break;
-            case StationType.Y:
-                valueY = Mathf.Clamp(valueY + station.valueIncrease, 0f, 100f);
+            case CrewConsoleType.Y:
+                valueY = Mathf.Clamp(valueY + CrewConsole.valueIncrease, 0f, 100f);
                 break;
-            case StationType.Z:
-                valueZ = Mathf.Clamp(valueZ + station.valueIncrease, 0f, 100f);
+            case CrewConsoleType.Z:
+                valueZ = Mathf.Clamp(valueZ + CrewConsole.valueIncrease, 0f, 100f);
                 break;
         }
 
-        Debug.Log($"[{name}] Visited {station.stationType} station — X:{valueX:F0}  Y:{valueY:F0}  Z:{valueZ:F0}");
+        Debug.Log($"[{name}] Visited {CrewConsole.CrewConsoleType} CrewConsole — X:{valueX:F0}  Y:{valueY:F0}  Z:{valueZ:F0}");
     }
 
     // -----------------------------------------------------------------------

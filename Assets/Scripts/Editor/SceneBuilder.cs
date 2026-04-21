@@ -49,12 +49,12 @@ public static class SceneBuilder
         var gameScripts = new GameObject("Game Scripts");
         gameScripts.transform.SetParent(root.transform);
 
-        // ── Station Spawner ───────────────────────────────────────────────────
-        // Stations are no longer hardcoded here — they're driven by station_layout.json.
-        // The StationSpawner component reads that file at runtime and instantiates prefabs.
-        // After running Build Scene, open the StationSpawner GameObject in the Inspector
-        // and drag your prefabs from Assets/Prefabs into the Station Types list.
-        gameScripts.AddComponent<StationSpawner>();
+        // ── Console Spawner ───────────────────────────────────────────────────
+        // Crew consoles are no longer hardcoded here — they're driven by console_layout.json.
+        // The CrewConsoleSpawner component reads that file at runtime and instantiates prefabs.
+        // After running Build Scene, open the Game Scripts GameObject in the Inspector
+        // and drag your prefabs from Assets/Prefabs into the Console Types list.
+        gameScripts.AddComponent<CrewConsoleSpawner>();
 
         // ── Agents ────────────────────────────────────────────────────────────
         PlaceAgent(root.transform, new Vector3(0f, 0f, 0f), "Agent 1");

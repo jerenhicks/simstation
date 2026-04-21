@@ -1,22 +1,22 @@
 using UnityEngine;
 
 /// <summary>
-/// The type of value this station provides to visiting agents.
-/// Must be set in the Inspector on each station prefab.
+/// The type of value this crew console provides to visiting agents.
+/// Must be set in the Inspector on each crew console prefab.
 /// </summary>
-public enum StationType { X, Y, Z }
+public enum CrewConsoleType { X, Y, Z }
 
 /// <summary>
-/// Represents a workstation that AI agents can visit and occupy.
-/// Attach this to any GameObject you want to act as a station.
+/// Represents an interactive crew console that AI agents can visit and occupy.
+/// Attach this to any GameObject you want to act as a crew console.
 /// </summary>
-public class Station : MonoBehaviour
+public class CrewConsole : MonoBehaviour
 {
-    [Header("Station Type")]
-    [Tooltip("Which agent value this station increases when visited.")]
-    public StationType stationType = StationType.X;
+    [Header("Console Type")]
+    [Tooltip("Which agent value this console increases when visited.")]
+    public CrewConsoleType CrewConsoleType = CrewConsoleType.X;
 
-    [Tooltip("How much this station increases the matching agent value per visit (0–100 scale).")]
+    [Tooltip("How much this console increases the matching agent value per visit (0–100 scale).")]
     public float valueIncrease = 10f;
 
     [Header("Settings")]
@@ -26,7 +26,7 @@ public class Station : MonoBehaviour
     public bool IsOccupied { get; private set; }
 
     /// <summary>
-    /// Attempt to claim this station. Returns true if successful, false if already occupied.
+    /// Attempt to claim this console. Returns true if successful, false if already occupied.
     /// </summary>
     public bool TryOccupy()
     {
@@ -36,7 +36,7 @@ public class Station : MonoBehaviour
     }
 
     /// <summary>
-    /// Release the station so another agent can use it.
+    /// Release the console so another agent can use it.
     /// </summary>
     public void Release()
     {

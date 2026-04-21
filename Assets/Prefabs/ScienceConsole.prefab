@@ -147,13 +147,37 @@ PrefabInstance:
       propertyPath: m_Name
       value: X_Station
       objectReference: {fileID: 0}
-    m_RemovedComponents: []
+    m_RemovedComponents:
+    - {fileID: 6798838023653053270, guid: efcdc24a1047c3240955d2fba5e4c1bb, type: 3}
     m_RemovedGameObjects: []
     m_AddedGameObjects: []
-    m_AddedComponents: []
+    m_AddedComponents:
+    - targetCorrespondingSourceObject: {fileID: 5048665141824817418, guid: efcdc24a1047c3240955d2fba5e4c1bb, type: 3}
+      insertIndex: -1
+      addedObject: {fileID: 7759633246828900259}
   m_SourcePrefab: {fileID: 100100000, guid: efcdc24a1047c3240955d2fba5e4c1bb, type: 3}
 --- !u!4 &2463801963559066757 stripped
 Transform:
   m_CorrespondingSourceObject: {fileID: 4795093597252617627, guid: efcdc24a1047c3240955d2fba5e4c1bb, type: 3}
   m_PrefabInstance: {fileID: 6970084505053239582}
   m_PrefabAsset: {fileID: 0}
+--- !u!1 &2786251384339206164 stripped
+GameObject:
+  m_CorrespondingSourceObject: {fileID: 5048665141824817418, guid: efcdc24a1047c3240955d2fba5e4c1bb, type: 3}
+  m_PrefabInstance: {fileID: 6970084505053239582}
+  m_PrefabAsset: {fileID: 0}
+--- !u!114 &7759633246828900259
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 2786251384339206164}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 34139891de5a41f43ae9f4472501e24b, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Assembly-CSharp::CrewConsole
+  consoleType: 0
+  valueIncrease: 10
+  arrivalRadius: 0.8

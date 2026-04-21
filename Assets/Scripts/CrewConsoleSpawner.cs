@@ -4,23 +4,23 @@ using System.IO;
 using UnityEngine;
 
 /// <summary>
-/// Reads station_layout.json from StreamingAssets at game start and
+/// Reads console_layout.json from StreamingAssets at game start and
 /// spawns the correct prefab at each configured position.
 ///
 /// Setup:
 ///   1. Add this component to a GameObject in your scene (SceneBuilder does this automatically).
-///   2. In the Inspector, expand "Station Types" and add one entry per station prefab:
-///        Type Name  →  the exact string used in the JSON  (e.g. "X_Station")
+///   2. In the Inspector, expand "Console Types" and add one entry per console prefab:
+///        Type Name  →  the exact string used in the JSON  (e.g. "X_Console")
 ///        Prefab     →  drag the matching prefab from Assets/Prefabs
 ///   3. Make sure each prefab has a URP-compatible material assigned directly on it.
-///   4. Edit StreamingAssets/station_layout.json to set positions and types.
+///   4. Edit StreamingAssets/console_layout.json to set positions and types.
 /// </summary>
-public class StationSpawner : MonoBehaviour
+public class CrewConsoleSpawner : MonoBehaviour
 {
-    [Tooltip("Register each station type here. Type Name must match the 'type' field in the JSON.")]
-    public List<StationPrefabEntry> stationTypes = new List<StationPrefabEntry>();
+    [Tooltip("Register each console type here. Type Name must match the 'type' field in the JSON.")]
+    public List<CrewConsolePrefabEntry> consoleTypes = new List<CrewConsolePrefabEntry>();
 
-    private const string LayoutFileName = "station_layout.json";
+    private const string LayoutFileName = "console_layout.json";
 
     private void Start()
     {
@@ -34,31 +34,31 @@ public class StationSpawner : MonoBehaviour
 
         if (!File.Exists(path))
         {
-            Debug.LogError($"[StationSpawner] Config file not found at: {path}");
+            Debug.LogError($"[ConsoleSpawner] Config file not found at: {path}");
             return;
         }
 
-        StationLayout layout;
+        CrewConsoleLayout layout;
         try
         {
             var json = File.ReadAllText(path);
-            layout = JsonUtility.FromJson<StationLayout>(json);
+            layout = JsonUtility.FromJson<CrewConsoleLayout>(json);
         }
         catch (Exception e)
         {
-            Debug.LogError($"[StationSpawner] Failed to parse {LayoutFileName}: {e.Message}");
+            Debug.LogError($"[ConsoleSpawner] Failed to parse {LayoutFileName}: {e.Message}");
             return;
         }
 
-        if (layout?.stations == null || layout.stations.Count == 0)
+        if (layout?.consoles == null || layout.consoles.Count == 0)
         {
-            Debug.LogWarning("[StationSpawner] No stations found in layout file.");
+            Debug.LogWarning("[ConsoleSpawner] No consoles found in layout file.");
             return;
         }
 
         // ── Build lookup: type name → entry ──────────────────────────────────
-        var entryMap = new Dictionary<string, StationPrefabEntry>(StringComparer.OrdinalIgnoreCase);
-        foreach (var entry in stationTypes)
+        var entryMap = new Dictionary<string, CrewConsolePrefabEntry>(StringComparer.OrdinalIgnoreCase);
+        foreach (var entry in consoleTypes)
         {
             if (entry.prefab != null && !string.IsNullOrEmpty(entry.typeName))
                 entryMap[entry.typeName] = entry;
@@ -66,18 +66,18 @@ public class StationSpawner : MonoBehaviour
 
         // ── Spawn ────────────────────────────────────────────────────────────
         int spawned = 0;
-        foreach (var data in layout.stations)
+        foreach (var data in layout.consoles)
         {
             if (string.IsNullOrEmpty(data.type))
             {
-                Debug.LogWarning($"[StationSpawner] Station '{data.id}' has no type — skipping.");
+                Debug.LogWarning($"[ConsoleSpawner] Console '{data.id}' has no type — skipping.");
                 continue;
             }
 
             if (!entryMap.TryGetValue(data.type, out var entry))
             {
-                Debug.LogWarning($"[StationSpawner] No prefab registered for type '{data.type}' (id: '{data.id}'). " +
-                                 "Check the StationSpawner Inspector.");
+                Debug.LogWarning($"[CrewConsoleSpawner] No prefab registered for type '{data.type}' (id: '{data.id}'). " +
+                                 "Check the CrewConsoleSpawner Inspector.");
                 continue;
             }
 
@@ -87,18 +87,18 @@ public class StationSpawner : MonoBehaviour
             spawned++;
         }
 
-        Debug.Log($"[StationSpawner] Spawned {spawned} of {layout.stations.Count} stations.");
+        Debug.Log($"[CrewConsoleSpawner] Spawned {spawned} of {layout.consoles.Count} consoles.");
     }
 }
 
 // ── Supporting type ───────────────────────────────────────────────────────────
 
 [Serializable]
-public class StationPrefabEntry
+public class CrewConsolePrefabEntry
 {
-    [Tooltip("Must match the 'type' string in station_layout.json exactly (case-insensitive).")]
+    [Tooltip("Must match the 'type' string in console_layout.json exactly (case-insensitive).")]
     public string typeName;
 
-    [Tooltip("The prefab to instantiate for this station type. Assign a URP material directly on the prefab for correct colors.")]
+    [Tooltip("The prefab to instantiate for this console type. Assign a URP material directly on the prefab for correct colors.")]
     public GameObject prefab;
 }
