@@ -17,10 +17,10 @@ public static class SceneBuilder
     // Room C: world XZ  0–10 × 15–25  (north, connected via Corridor_AC)
 
     const float ROOM = 10f;   // room side length
-    const float GAP  =  5f;   // corridor length between rooms
-    const float DOOR =  3f;   // doorway width
-    const float WH   =  2f;   // wall height (tall enough so NavMesh won't jump over)
-    const float WT   =  0.2f; // wall thickness
+    const float GAP = 5f;   // corridor length between rooms
+    const float DOOR = 3f;   // doorway width
+    const float WH = 2f;   // wall height (tall enough so NavMesh won't jump over)
+    const float WT = 0.2f; // wall thickness
 
     // ── Entry Point ───────────────────────────────────────────────────────────
     [MenuItem("SimStation/Build Scene")]
@@ -32,45 +32,41 @@ public static class SceneBuilder
 
         var root = new GameObject("SimStation Root");
 
-        // ── Rooms ─────────────────────────────────────────────────────────────
-        BuildRoom(root.transform, "Room A", new Vector3(0,          0, 0         ), doorEast: true,  doorNorth: true );
-        BuildRoom(root.transform, "Room B", new Vector3(ROOM + GAP, 0, 0         ), doorWest: true                  );
-        BuildRoom(root.transform, "Room C", new Vector3(0,          0, ROOM + GAP), doorSouth: true                 );
+        // ── Room (TestRoom prefab) ─────────────────────────────────────────────
+        var roomPrefab = UnityEditor.AssetDatabase.LoadAssetAtPath<GameObject>("Assets/Prefabs/TestRoom.prefab");
+        if (roomPrefab != null)
+        {
+            var roomInstance = (GameObject)UnityEditor.PrefabUtility.InstantiatePrefab(roomPrefab, root.transform);
+            roomInstance.name = "TestRoom";
+            roomInstance.transform.position = Vector3.zero;
+        }
+        else
+        {
+            Debug.LogError("[SimStation] TestRoom prefab not found at Assets/Prefabs/TestRoom.prefab — check the path.");
+        }
 
-        // ── Corridors ─────────────────────────────────────────────────────────
-        float doorOff = (ROOM - DOOR) / 2f; // = 3.5  (where doorway starts along the wall)
-
-        // Corridor A↔B: travels along X (10–15), spans Z (3.5–6.5)
-        BuildCorridor(root.transform, "Corridor_AB",
-            origin: new Vector3(ROOM, 0, doorOff), lx: GAP, lz: DOOR, horizontal: true);
-
-        // Corridor A↔C: travels along Z (10–15), spans X (3.5–6.5)
-        BuildCorridor(root.transform, "Corridor_AC",
-            origin: new Vector3(doorOff, 0, ROOM), lx: DOOR, lz: GAP, horizontal: false);
+        // One Game Object to have all the scenes objects
+        var gameScripts = new GameObject("Game Scripts");
+        gameScripts.transform.SetParent(root.transform);
 
         // ── Station Spawner ───────────────────────────────────────────────────
         // Stations are no longer hardcoded here — they're driven by station_layout.json.
         // The StationSpawner component reads that file at runtime and instantiates prefabs.
         // After running Build Scene, open the StationSpawner GameObject in the Inspector
         // and drag your prefabs from Assets/Prefabs into the Station Types list.
-        var spawnerGo = new GameObject("Station Spawner");
-        spawnerGo.transform.SetParent(root.transform);
-        spawnerGo.AddComponent<StationSpawner>();
+        gameScripts.AddComponent<StationSpawner>();
 
         // ── Agents ────────────────────────────────────────────────────────────
-        PlaceAgent(root.transform, new Vector3(3f, 0.5f, 3f), "Agent 1");
-        PlaceAgent(root.transform, new Vector3(7f, 0.5f, 3f), "Agent 2");
-        PlaceAgent(root.transform, new Vector3(5f, 0.5f, 6f), "Agent 3");
+        PlaceAgent(root.transform, new Vector3(0f, 0f, 0f), "Agent 1");
+        PlaceAgent(root.transform, new Vector3(0f, 0f, 0f), "Agent 2");
+        PlaceAgent(root.transform, new Vector3(0f, 0f, 0f), "Agent 3");
+
 
         // ── Selection Manager ─────────────────────────────────────────────────
-        var selGo = new GameObject("Selection Manager");
-        selGo.transform.SetParent(root.transform);
-        selGo.AddComponent<SelectionManager>();
+        gameScripts.AddComponent<SelectionManager>();
 
         // ── Agent Info UI ─────────────────────────────────────────────────────
-        var uiGo = new GameObject("Agent Info UI");
-        uiGo.transform.SetParent(root.transform);
-        uiGo.AddComponent<AgentInfoUI>();
+        gameScripts.AddComponent<AgentInfoUI>();
 
         // ── NavMesh ───────────────────────────────────────────────────────────
         var nmGo = new GameObject("NavMesh Surface");
@@ -83,14 +79,18 @@ public static class SceneBuilder
         var cam = Camera.main;
         if (cam != null)
         {
-            float cx = (2 * ROOM + GAP) / 2f; // horizontal center of all rooms
-            float cz = (2 * ROOM + GAP) / 2f; // vertical center
-            cam.transform.position = new Vector3(cx, 30f, cz);
-            cam.transform.rotation = Quaternion.Euler(90f, 0f, 0f);
-            cam.orthographic       = true;
-            cam.orthographicSize   = 16f;
-            cam.clearFlags         = CameraClearFlags.SolidColor;
-            cam.backgroundColor    = new Color(0.08f, 0.08f, 0.10f); // dark background
+            // Perspective mode — positioned above and angled in for a nice 3D starting view
+            cam.transform.position = new Vector3(ROOM / 2f, 14f, -6f);
+            cam.transform.rotation = Quaternion.Euler(50f, 0f, 0f);
+            cam.orthographic       = false;
+            cam.fieldOfView        = 60f;
+            cam.nearClipPlane      = 0.1f;
+            cam.farClipPlane       = 200f;
+            cam.clearFlags         = CameraClearFlags.Skybox; // let skybox show so lighting renders correctly
+
+            // Attach the free-roam controller so the camera is movable in Play mode
+            if (cam.GetComponent<FreeCameraController>() == null)
+                cam.gameObject.AddComponent<FreeCameraController>();
         }
 
         EditorSceneManager.MarkSceneDirty(EditorSceneManager.GetActiveScene());
@@ -100,7 +100,7 @@ public static class SceneBuilder
     // ── Room ─────────────────────────────────────────────────────────────────
     static void BuildRoom(Transform parent, string roomName, Vector3 origin,
         bool doorNorth = false, bool doorSouth = false,
-        bool doorEast  = false, bool doorWest  = false)
+        bool doorEast = false, bool doorWest = false)
     {
         var room = new GameObject(roomName);
         room.transform.SetParent(parent);
@@ -109,19 +109,19 @@ public static class SceneBuilder
         // Floor — a Unity Plane is 10×10 at localScale (1,1,1)
         MakeFloor(room.transform,
             localPos: new Vector3(ROOM / 2f, 0f, ROOM / 2f),
-            scale:    new Vector3(ROOM / 10f, 1f, ROOM / 10f),
-            col:      new Color(0.55f, 0.55f, 0.55f));
+            scale: new Vector3(ROOM / 10f, 1f, ROOM / 10f),
+            col: new Color(0.55f, 0.55f, 0.55f));
 
         float seg = (ROOM - DOOR) / 2f; // half-wall length beside a doorway (3.5)
 
         // South edge (fixed Z = 0, runs along X)
-        BuildEdge(room.transform, isXFixed: false, edgeVal: 0f,    hasDoor: doorSouth, seg, "S");
+        BuildEdge(room.transform, isXFixed: false, edgeVal: 0f, hasDoor: doorSouth, seg, "S");
         // North edge (fixed Z = ROOM, runs along X)
-        BuildEdge(room.transform, isXFixed: false, edgeVal: ROOM,  hasDoor: doorNorth, seg, "N");
+        BuildEdge(room.transform, isXFixed: false, edgeVal: ROOM, hasDoor: doorNorth, seg, "N");
         // West edge  (fixed X = 0, runs along Z)
-        BuildEdge(room.transform, isXFixed: true,  edgeVal: 0f,    hasDoor: doorWest,  seg, "W");
+        BuildEdge(room.transform, isXFixed: true, edgeVal: 0f, hasDoor: doorWest, seg, "W");
         // East edge  (fixed X = ROOM, runs along Z)
-        BuildEdge(room.transform, isXFixed: true,  edgeVal: ROOM,  hasDoor: doorEast,  seg, "E");
+        BuildEdge(room.transform, isXFixed: true, edgeVal: ROOM, hasDoor: doorEast, seg, "E");
     }
 
     /// <param name="isXFixed">true → wall sits at a fixed X (West/East); false → fixed Z (South/North)</param>
@@ -130,9 +130,9 @@ public static class SceneBuilder
         if (!hasDoor)
         {
             if (isXFixed) // West or East — full wall along Z
-                Wall(room, new Vector3(edgeVal,   WH/2f, ROOM/2f), new Vector3(WT,   WH, ROOM), $"Wall_{lbl}");
+                Wall(room, new Vector3(edgeVal, WH / 2f, ROOM / 2f), new Vector3(WT, WH, ROOM), $"Wall_{lbl}");
             else           // South or North — full wall along X
-                Wall(room, new Vector3(ROOM/2f,   WH/2f, edgeVal), new Vector3(ROOM, WH, WT),   $"Wall_{lbl}");
+                Wall(room, new Vector3(ROOM / 2f, WH / 2f, edgeVal), new Vector3(ROOM, WH, WT), $"Wall_{lbl}");
             return;
         }
 
@@ -141,13 +141,13 @@ public static class SceneBuilder
 
         if (isXFixed)
         {
-            Wall(room, new Vector3(edgeVal, WH/2f, c1), new Vector3(WT, WH, seg), $"Wall_{lbl}1");
-            Wall(room, new Vector3(edgeVal, WH/2f, c2), new Vector3(WT, WH, seg), $"Wall_{lbl}2");
+            Wall(room, new Vector3(edgeVal, WH / 2f, c1), new Vector3(WT, WH, seg), $"Wall_{lbl}1");
+            Wall(room, new Vector3(edgeVal, WH / 2f, c2), new Vector3(WT, WH, seg), $"Wall_{lbl}2");
         }
         else
         {
-            Wall(room, new Vector3(c1, WH/2f, edgeVal), new Vector3(seg, WH, WT), $"Wall_{lbl}1");
-            Wall(room, new Vector3(c2, WH/2f, edgeVal), new Vector3(seg, WH, WT), $"Wall_{lbl}2");
+            Wall(room, new Vector3(c1, WH / 2f, edgeVal), new Vector3(seg, WH, WT), $"Wall_{lbl}1");
+            Wall(room, new Vector3(c2, WH / 2f, edgeVal), new Vector3(seg, WH, WT), $"Wall_{lbl}2");
         }
     }
 
@@ -164,19 +164,19 @@ public static class SceneBuilder
         go.transform.position = Vector3.zero; // children use world-space positions
 
         MakeFloor(go.transform,
-            localPos: origin + new Vector3(lx/2f, 0f, lz/2f),
-            scale:    new Vector3(lx / 10f, 1f, lz / 10f),
-            col:      new Color(0.50f, 0.50f, 0.50f));
+            localPos: origin + new Vector3(lx / 2f, 0f, lz / 2f),
+            scale: new Vector3(lx / 10f, 1f, lz / 10f),
+            col: new Color(0.50f, 0.50f, 0.50f));
 
         if (horizontal) // side walls run along X (south & north)
         {
-            Wall(go.transform, origin + new Vector3(lx/2f, WH/2f, 0f), new Vector3(lx, WH, WT), "Wall_S");
-            Wall(go.transform, origin + new Vector3(lx/2f, WH/2f, lz), new Vector3(lx, WH, WT), "Wall_N");
+            Wall(go.transform, origin + new Vector3(lx / 2f, WH / 2f, 0f), new Vector3(lx, WH, WT), "Wall_S");
+            Wall(go.transform, origin + new Vector3(lx / 2f, WH / 2f, lz), new Vector3(lx, WH, WT), "Wall_N");
         }
         else            // side walls run along Z (west & east)
         {
-            Wall(go.transform, origin + new Vector3(0f, WH/2f, lz/2f), new Vector3(WT, WH, lz), "Wall_W");
-            Wall(go.transform, origin + new Vector3(lx, WH/2f, lz/2f), new Vector3(WT, WH, lz), "Wall_E");
+            Wall(go.transform, origin + new Vector3(0f, WH / 2f, lz / 2f), new Vector3(WT, WH, lz), "Wall_W");
+            Wall(go.transform, origin + new Vector3(lx, WH / 2f, lz / 2f), new Vector3(WT, WH, lz), "Wall_E");
         }
     }
 
@@ -186,15 +186,15 @@ public static class SceneBuilder
         var a = GameObject.CreatePrimitive(PrimitiveType.Capsule);
         a.name = aName;
         a.transform.SetParent(parent);
-        a.transform.position   = worldPos;
+        a.transform.position = worldPos;
         a.transform.localScale = new Vector3(0.6f, 0.6f, 0.6f); // slightly larger so they're visible from top
 
         var nav = a.AddComponent<NavMeshAgent>();
-        nav.speed            = 3.5f;
+        nav.speed = 3.5f;
         nav.stoppingDistance = 0.6f;
-        nav.angularSpeed     = 360f;
-        nav.radius           = 0.25f;
-        nav.height           = 1f;
+        nav.angularSpeed = 360f;
+        nav.radius = 0.25f;
+        nav.height = 1f;
 
         a.AddComponent<AIAgent>();
         Colorize(a, new Color(0.45f, 0.55f, 0.95f)); // blue
@@ -207,7 +207,7 @@ public static class SceneBuilder
         f.name = "Floor";
         f.transform.SetParent(parent);
         f.transform.localPosition = localPos;
-        f.transform.localScale    = scale;
+        f.transform.localScale = scale;
         Colorize(f, col);
     }
 
@@ -217,7 +217,7 @@ public static class SceneBuilder
         w.name = wName;
         w.transform.SetParent(parent);
         w.transform.localPosition = localPos;
-        w.transform.localScale    = scale;
+        w.transform.localScale = scale;
         Colorize(w, new Color(0.22f, 0.22f, 0.25f)); // dark grey
     }
 
