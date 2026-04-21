@@ -62,6 +62,13 @@ public static class SceneBuilder
         PlaceAgent(root.transform, new Vector3(0f, 0f, 0f), "Agent 3");
 
 
+        // ── Station Builder UI ────────────────────────────────────────────────
+        // Adds the "+ Add Module" button to the screen.
+        // After running Build Scene, select "Game Scripts" in the Hierarchy,
+        // find StationBuilderUI in the Inspector, and drag your TestRoom prefab
+        // into the "Module Prefab" slot.
+        gameScripts.AddComponent<StationBuilderUI>();
+
         // ── Selection Manager ─────────────────────────────────────────────────
         gameScripts.AddComponent<SelectionManager>();
 
@@ -73,6 +80,9 @@ public static class SceneBuilder
         nmGo.transform.SetParent(root.transform);
         var surface = nmGo.AddComponent<NavMeshSurface>();
         surface.collectObjects = CollectObjects.All;
+        // Use physics colliders instead of render meshes so imported mesh assets
+        // don't need Read/Write enabled — colliders work fine without it.
+        surface.useGeometry = NavMeshCollectGeometry.PhysicsColliders;
         surface.BuildNavMesh(); // bakes automatically — no need to click anything
 
         // ── Camera ────────────────────────────────────────────────────────────
