@@ -17,8 +17,12 @@ using UnityEngine.InputSystem;
 public class FreeCameraController : MonoBehaviour
 {
     [Header("Look")]
-    [Tooltip("Mouse-look sensitivity")]
-    public float lookSensitivity = 0.2f;
+    [Tooltip("Mouse-look sensitivity — lower this if rotation feels jittery (try 0.05–0.1)")]
+    public float lookSensitivity = 0.08f;
+
+    [Tooltip("Smoothing applied to mouse delta (0 = none, higher = smoother but slightly laggy)")]
+    [Range(0f, 0.9f)]
+    public float lookSmoothing = 0.2f;
 
     [Header("Move")]
     [Tooltip("WASD / QE move speed (units per second)")]
@@ -38,8 +42,9 @@ public class FreeCameraController : MonoBehaviour
     public float maxPitch =  80f;
 
     // ── Private state ────────────────────────────────────────────────────────
-    float _yaw;
-    float _pitch;
+    float   _yaw;
+    float   _pitch;
+    Vector2 _smoothedDelta;
 
     void Start()
     {
@@ -61,11 +66,19 @@ public class FreeCameraController : MonoBehaviour
         // ── Right-click drag → look ───────────────────────────────────────────
         if (mouse.rightButton.isPressed)
         {
-            Vector2 delta = mouse.delta.ReadValue();
-            _yaw   +=  delta.x * lookSensitivity;
-            _pitch -=  delta.y * lookSensitivity;
+            Vector2 rawDelta  = mouse.delta.ReadValue();
+            float   t         = 1f - lookSmoothing; // 1 = no smoothing, ~0 = very smooth
+            _smoothedDelta    = Vector2.Lerp(_smoothedDelta, rawDelta, t);
+            _yaw   +=  _smoothedDelta.x * lookSensitivity;
+            _pitch -=  _smoothedDelta.y * lookSensitivity;
             _pitch  = Mathf.Clamp(_pitch, minPitch, maxPitch);
             transform.rotation = Quaternion.Euler(_pitch, _yaw, 0f);
+        }
+        else
+        {
+            // Drain the smoothed delta when the button is released so there's
+            // no "drift" carry-over the next time right-click is pressed.
+            _smoothedDelta = Vector2.zero;
         }
 
         // ── WASD / QE → move ─────────────────────────────────────────────────
