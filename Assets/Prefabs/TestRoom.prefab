@@ -45,6 +45,7 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::ModuleConnector
   portId: North
+  doorObject: {fileID: 4742493172978130192}
 --- !u!1 &3703629558544508040
 GameObject:
   m_ObjectHideFlags: 0
@@ -169,6 +170,7 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::ModuleConnector
   portId: South
+  doorObject: {fileID: 4032710392185800893}
 --- !u!1001 &143554814116127815
 PrefabInstance:
   m_ObjectHideFlags: 0
@@ -722,6 +724,11 @@ PrefabInstance:
     m_AddedGameObjects: []
     m_AddedComponents: []
   m_SourcePrefab: {fileID: 100100000, guid: dc186893ec25ee143b1c69b39cb76839, type: 3}
+--- !u!1 &4742493172978130192 stripped
+GameObject:
+  m_CorrespondingSourceObject: {fileID: 6545356434981000122, guid: dc186893ec25ee143b1c69b39cb76839, type: 3}
+  m_PrefabInstance: {fileID: 1947101597931638442}
+  m_PrefabAsset: {fileID: 0}
 --- !u!4 &5376005777253451690 stripped
 Transform:
   m_CorrespondingSourceObject: {fileID: 5881162709833894144, guid: dc186893ec25ee143b1c69b39cb76839, type: 3}
@@ -1838,6 +1845,11 @@ PrefabInstance:
     m_AddedGameObjects: []
     m_AddedComponents: []
   m_SourcePrefab: {fileID: 100100000, guid: dc186893ec25ee143b1c69b39cb76839, type: 3}
+--- !u!1 &4032710392185800893 stripped
+GameObject:
+  m_CorrespondingSourceObject: {fileID: 6545356434981000122, guid: dc186893ec25ee143b1c69b39cb76839, type: 3}
+  m_PrefabInstance: {fileID: 7864083486806563591}
+  m_PrefabAsset: {fileID: 0}
 --- !u!4 &4376584116388401671 stripped
 Transform:
   m_CorrespondingSourceObject: {fileID: 5881162709833894144, guid: dc186893ec25ee143b1c69b39cb76839, type: 3}
