@@ -89,11 +89,9 @@ public class StationBuilderUI : MonoBehaviour
         newModule.ConnectTo(myPort, targetPort);
 
         // Rebake the whole-station NavMesh so agents can cross the new room.
+        // Doors are already hidden before this call, so the open doorway
+        // bakes as walkable floor — no NavMeshLink needed.
         RebakeNavMesh();
-
-        // Snap the NavMesh Link endpoints to the freshly baked NavMesh so agents
-        // can actually traverse the link. Must happen AFTER the bake.
-        targetPort.SnapNavLinkToMesh();
 
         SetStatus($"Added {newModule.moduleName}!", Color.green);
         Debug.Log($"[StationBuilderUI] Module '{newModule.moduleName}' connected to '{targetPort.portId}' on '{targetPort.transform.root.name}'.");

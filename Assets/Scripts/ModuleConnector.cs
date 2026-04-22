@@ -1,5 +1,4 @@
 using UnityEngine;
-using UnityEngine.AI;
 using Unity.AI.Navigation;
 
 /// <summary>
@@ -9,13 +8,17 @@ using Unity.AI.Navigation;
 /// face its Z-axis (blue arrow) OUTWARD from the room, then add this component.
 ///
 /// When two connectors are linked (via StationModule.ConnectTo), the module
-/// positions itself so the connectors sit back-to-back, and a NavMesh Link
-/// is automatically created so agents can walk between the rooms.
+/// positions itself so the connectors sit back-to-back and the NavMesh bakes
+/// continuously through the open doorway.
 ///
 /// Door setup:
 ///   Drag the door mesh GameObject into the "Door Object" slot.
 ///   The door is visible (closed) when the port is unlinked, and hidden
-///   (open / removed) when a neighbouring module connects.
+///   (open) when a neighbouring module connects — BEFORE the NavMesh rebakes,
+///   so the open doorway is included in the bake with no obstacles.
+///
+///   Important: the door object's collider should be set to Is Trigger (or
+///   removed) so it never blocks the NavMesh bake even when visible.
 /// </summary>
 public class ModuleConnector : MonoBehaviour
 {
@@ -35,15 +38,12 @@ public class ModuleConnector : MonoBehaviour
     /// <summary>True when this port has no neighbour attached.</summary>
     public bool IsAvailable => LinkedConnector == null;
 
-    // NavMesh Link bridging the gap between the two rooms at this connector.
-    private NavMeshLink _navLink;
-
     // ── API ───────────────────────────────────────────────────────────────────
 
     /// <summary>
-    /// Links this connector to <paramref name="other"/> and creates a NavMesh Link
-    /// so agents can navigate between the two modules.
-    /// Hides the door on both sides of the connection.
+    /// Links this connector to <paramref name="other"/>.
+    /// Hides the door on both sides so the passage is open before the
+    /// NavMesh rebakes — the bake then covers the doorway natively.
     /// Call this AFTER the new module has been positioned via AlignConnectorTo.
     /// </summary>
     public void LinkTo(ModuleConnector other)
@@ -57,73 +57,21 @@ public class ModuleConnector : MonoBehaviour
         LinkedConnector = other;
         other.LinkedConnector = this;
 
-        // Hide doors on both sides — the passage is now open.
+        // Hide doors on both sides BEFORE the NavMesh rebakes.
+        // This ensures the open doorway is baked as walkable floor,
+        // letting agents walk through naturally without any off-mesh link.
         SetDoorOpen(true);
         other.SetDoorOpen(true);
-
-        // Add a NavMesh Link bridging the two rooms.
-        //
-        // After AlignConnectorTo, both connectors share the same world position,
-        // so a zero-length link would be useless. Instead we push each endpoint
-        // 1 m INWARD along the connector's local Z axis:
-        //   -Z = into THIS room  (forward points outward, so backwards = inward)
-        //   +Z = into the OTHER room (other.forward is opposite, so +Z here goes in)
-        //
-        // This ensures both endpoints land on the baked NavMesh inside their rooms.
-        const float linkDepth = 1f;
-        _navLink = gameObject.AddComponent<NavMeshLink>();
-        _navLink.startPoint    = new Vector3(0f, 0f, -linkDepth); // 1 m into this room
-        _navLink.endPoint      = new Vector3(0f, 0f,  linkDepth); // 1 m into the other room
-        _navLink.width         = 2f;
-        _navLink.bidirectional = true;
-        _navLink.UpdateLink();
 
         Debug.Log($"[ModuleConnector] Linked {portId} ↔ {other.portId}");
     }
 
     /// <summary>
-    /// Snaps the NavMesh Link endpoints to the nearest real NavMesh positions.
-    /// Call this AFTER the NavMesh has been rebaked so SamplePosition finds
-    /// the freshly baked geometry. Without this, endpoints can land in wall
-    /// geometry or the gap between rooms and agents won't traverse the link.
-    /// </summary>
-    public void SnapNavLinkToMesh()
-    {
-        if (_navLink == null) return;
-
-        const float searchRadius = 3f;
-
-        // Convert current link endpoints from local → world, snap to NavMesh, convert back.
-        Vector3 startWorld = transform.TransformPoint(_navLink.startPoint);
-        Vector3 endWorld   = transform.TransformPoint(_navLink.endPoint);
-
-        if (NavMesh.SamplePosition(startWorld, out NavMeshHit sHit, searchRadius, NavMesh.AllAreas))
-        {
-            _navLink.startPoint = transform.InverseTransformPoint(sHit.position);
-            Debug.Log($"[ModuleConnector] Snapped start to NavMesh at {sHit.position}");
-        }
-        else
-            Debug.LogWarning($"[ModuleConnector] Could not snap start point to NavMesh (searched {searchRadius}m around {startWorld})");
-
-        if (NavMesh.SamplePosition(endWorld, out NavMeshHit eHit, searchRadius, NavMesh.AllAreas))
-        {
-            _navLink.endPoint = transform.InverseTransformPoint(eHit.position);
-            Debug.Log($"[ModuleConnector] Snapped end to NavMesh at {eHit.position}");
-        }
-        else
-            Debug.LogWarning($"[ModuleConnector] Could not snap end point to NavMesh (searched {searchRadius}m around {endWorld})");
-
-        _navLink.UpdateLink();
-    }
-
-    /// <summary>
-    /// Removes the link and destroys the NavMesh Link bridge.
-    /// Restores the door on this side (the neighbour's door is its own responsibility).
+    /// Removes the link and restores both doors.
     /// Call on both connectors when a module is detached.
     /// </summary>
     public void Unlink()
     {
-        // Restore this side's door first, while we still know who the neighbour is.
         SetDoorOpen(false);
 
         if (LinkedConnector != null)
@@ -132,12 +80,6 @@ public class ModuleConnector : MonoBehaviour
             LinkedConnector.LinkedConnector = null;
             LinkedConnector = null;
         }
-
-        if (_navLink != null)
-        {
-            Destroy(_navLink);
-            _navLink = null;
-        }
     }
 
     // ── Door control ──────────────────────────────────────────────────────────
@@ -145,7 +87,7 @@ public class ModuleConnector : MonoBehaviour
     /// <summary>
     /// Shows or hides the door mesh.
     /// open=true  → door hidden  (passage is connected / walkable)
-    /// open=false → door visible (passage is a dead end / sealed)
+    /// open=false → door visible (passage is sealed)
     /// </summary>
     private void SetDoorOpen(bool open)
     {
@@ -154,8 +96,8 @@ public class ModuleConnector : MonoBehaviour
     }
 
     // ── Scene-view gizmos ─────────────────────────────────────────────────────
-    // Green  = available     Red = linked
-    // Arrow points OUTWARD (the direction a new module would attach from).
+    // Green = available   Red = linked
+    // Arrow points OUTWARD from the room.
 
     private void OnDrawGizmos()
     {
