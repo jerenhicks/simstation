@@ -1,5 +1,6 @@
 using UnityEngine;
 using UnityEngine.InputSystem;
+using UnityEngine.EventSystems;
 
 /// <summary>
 /// Handles agent selection via mouse click.
@@ -28,6 +29,12 @@ public class SelectionManager : MonoBehaviour
 
     private void HandleClick()
     {
+        // Don't process world clicks when the pointer is over a UI element —
+        // this prevents UI button clicks (e.g. Delete Agent) from accidentally
+        // deselecting the current agent before the button's onClick fires.
+        if (EventSystem.current != null && EventSystem.current.IsPointerOverGameObject())
+            return;
+
         if (Camera.main == null) return;
 
         var ray = Camera.main.ScreenPointToRay(Mouse.current.position.ReadValue());

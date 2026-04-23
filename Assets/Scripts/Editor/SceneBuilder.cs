@@ -62,10 +62,14 @@ public static class SceneBuilder
         // and drag your prefabs from Assets/Prefabs into the Console Types list.
         gameScripts.AddComponent<CrewConsoleSpawner>();
 
-        // ── Agents ────────────────────────────────────────────────────────────
-        PlaceAgent(root.transform, new Vector3(0f, 0f, 0f), "Agent 1");
-        PlaceAgent(root.transform, new Vector3(0f, 0f, 0f), "Agent 2");
-        PlaceAgent(root.transform, new Vector3(0f, 0f, 0f), "Agent 3");
+        // ── Agent Spawn Point ─────────────────────────────────────────────────
+        // Agents no longer spawn automatically at scene start.
+        // Use the "Add Agent" button in the runtime UI to spawn them here.
+        // Reposition this object in the Hierarchy to move the spawn location.
+        var spawnGo = new GameObject("Agent Spawn Point");
+        spawnGo.transform.SetParent(root.transform);
+        spawnGo.transform.position = new Vector3(2f, 0f, 2f); // near room centre
+        spawnGo.AddComponent<AgentSpawnPoint>();
 
 
         // ── Station Builder UI ────────────────────────────────────────────────
