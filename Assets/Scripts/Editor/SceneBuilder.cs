@@ -49,6 +49,12 @@ public static class SceneBuilder
         var gameScripts = new GameObject("Game Scripts");
         gameScripts.transform.SetParent(root.transform);
 
+        // ── Sim Clock ─────────────────────────────────────────────────────────
+        // Tracks in-game time. 1 real second = 1 game minute by default.
+        // Adjust "Minutes Per Second" in the Inspector to change time speed.
+        gameScripts.AddComponent<SimClock>();
+        gameScripts.AddComponent<SimClockUI>();
+
         // ── Console Spawner ───────────────────────────────────────────────────
         // Crew consoles are no longer hardcoded here — they're driven by console_layout.json.
         // The CrewConsoleSpawner component reads that file at runtime and instantiates prefabs.

@@ -73,21 +73,36 @@ public class AIAgent : MonoBehaviour
 
     private void Start()
     {
-        var all = FindObjectsByType<CrewConsole>(FindObjectsSortMode.None);
-        Debug.Log($"Total CrewConsoles found: {all.Length}");
-        foreach (var c in all)
-            Debug.Log($"  {c.name}  instanceID:{c.GetInstanceID()}  pos:{c.transform.position}");
-
-        navAgent = GetComponent<NavMeshAgent>();
+        navAgent      = GetComponent<NavMeshAgent>();
         agentRenderer = GetComponentInChildren<Renderer>();
 
         // Cache all CrewConsoles once (all agents share this reference)
         if (allCrewConsoles == null || allCrewConsoles.Length == 0)
             allCrewConsoles = FindObjectsByType<CrewConsole>(FindObjectsSortMode.None);
 
+        // Subscribe to clock pause events
+        if (SimClock.Instance != null)
+            SimClock.Instance.OnPauseChanged += OnClockPauseChanged;
+
         BuildSelectionRing();
         SetColor(idleColor);
         StartCoroutine(AgentRoutine());
+    }
+
+    private void OnDestroy()
+    {
+        if (SimClock.Instance != null)
+            SimClock.Instance.OnPauseChanged -= OnClockPauseChanged;
+    }
+
+    /// <summary>
+    /// Immediately stops or restarts NavMesh movement when the clock is paused/resumed.
+    /// The coroutine's WaitClockRunning() calls handle the rest.
+    /// </summary>
+    private void OnClockPauseChanged(bool paused)
+    {
+        if (navAgent != null && navAgent.isOnNavMesh)
+            navAgent.isStopped = paused;
     }
 
     // -----------------------------------------------------------------------
@@ -98,34 +113,38 @@ public class AIAgent : MonoBehaviour
     {
         while (true)
         {
+            // ── Pause gate: suspend here whenever the clock is paused ──────────
+            yield return new WaitUntil(() =>
+                SimClock.Instance == null || !SimClock.Instance.IsPaused);
+
             switch (currentState)
             {
                 case AgentState.Idle:
                     SetColor(idleColor);
 
-                    // Walk to a random nearby point so the agent looks like it's
-                    // moving around rather than standing still between tasks.
                     if (TryGetWanderDestination(out Vector3 wanderTarget))
                     {
                         navAgent.SetDestination(wanderTarget);
 
-                        // Wait until arrived, or bail if the path turns invalid.
+                        // Wait until arrived — also stops waiting while paused
+                        // (isStopped = true keeps remainingDistance unchanged).
                         yield return new WaitUntil(() =>
+                            (SimClock.Instance == null || !SimClock.Instance.IsPaused) &&
                             !navAgent.pathPending &&
                             (navAgent.remainingDistance <= navAgent.stoppingDistance + 0.1f ||
                              navAgent.pathStatus == NavMeshPathStatus.PathInvalid));
                     }
 
-                    // Brief pause at the wander destination before seeking a console.
-                    yield return new WaitForSeconds(idleDelay);
+                    // Pause-aware idle delay — only counts real time while unpaused.
+                    yield return PausableWait(idleDelay);
                     TryPickCrewConsole();
                     break;
 
                 case AgentState.MovingToCrewConsole:
                     SetColor(movingColor);
 
-                    // Wait until NavMesh path is calculated and agent is close enough
                     yield return new WaitUntil(() =>
+                        (SimClock.Instance == null || !SimClock.Instance.IsPaused) &&
                         !navAgent.pathPending &&
                         navAgent.remainingDistance <= navAgent.stoppingDistance + 0.1f);
 
@@ -136,7 +155,8 @@ public class AIAgent : MonoBehaviour
                     SetColor(workingColor);
                     navAgent.isStopped = true;
 
-                    yield return new WaitForSeconds(workDuration);
+                    // Pause-aware work timer — clock stops ticking while paused.
+                    yield return PausableWait(workDuration);
 
                     navAgent.isStopped = false;
 
@@ -151,7 +171,23 @@ public class AIAgent : MonoBehaviour
                     break;
             }
 
-            yield return null; // safety yield so we never freeze Unity
+            yield return null; // safety yield
+        }
+    }
+
+    /// <summary>
+    /// Waits for <paramref name="seconds"/> of real time, but does NOT count
+    /// time while the SimClock is paused. Agents resume exactly where they
+    /// left off in their timers when the clock unpauses.
+    /// </summary>
+    private System.Collections.IEnumerator PausableWait(float seconds)
+    {
+        float elapsed = 0f;
+        while (elapsed < seconds)
+        {
+            yield return null;
+            if (SimClock.Instance == null || !SimClock.Instance.IsPaused)
+                elapsed += Time.deltaTime;
         }
     }
 
