@@ -24,14 +24,18 @@ public class AIAgent : MonoBehaviour
     public float idleDelay = 1f;
 
     [Header("Agent Values (0–100)")]
-    [Tooltip("Increased by visiting X CrewConsoles")]
-    public float valueX = 0f;
+    [Tooltip("Restored by visiting X CrewConsoles. Starts full.")]
+    public float valueX = 100f;
 
-    [Tooltip("Increased by visiting Y CrewConsoles")]
-    public float valueY = 0f;
+    [Tooltip("Restored by visiting Y CrewConsoles. Starts full.")]
+    public float valueY = 100f;
 
-    [Tooltip("Increased by visiting Z CrewConsoles")]
-    public float valueZ = 0f;
+    [Tooltip("Restored by visiting Z CrewConsoles. Starts full.")]
+    public float valueZ = 100f;
+
+    [Tooltip("How much each stat decays per in-game minute. " +
+             "At the default clock speed (1 min/sec) a value of 1 drops ~1 point per real second.")]
+    public float decayPerMinute = 2f;
 
     [Header("Wandering")]
     [Tooltip("Radius (in world units) around the agent to pick a random wander point while idle")]
@@ -93,6 +97,18 @@ public class AIAgent : MonoBehaviour
     {
         if (SimClock.Instance != null)
             SimClock.Instance.OnPauseChanged -= OnClockPauseChanged;
+    }
+
+    private void Update()
+    {
+        // Decay all stats over time, scaled to in-game minutes.
+        // Does nothing while the sim clock is paused.
+        if (SimClock.Instance == null || SimClock.Instance.IsPaused) return;
+
+        float decay = decayPerMinute * SimClock.Instance.minutesPerSecond * Time.deltaTime;
+        valueX = Mathf.Clamp(valueX - decay, 0f, 100f);
+        valueY = Mathf.Clamp(valueY - decay, 0f, 100f);
+        valueZ = Mathf.Clamp(valueZ - decay, 0f, 100f);
     }
 
     /// <summary>
@@ -197,49 +213,87 @@ public class AIAgent : MonoBehaviour
 
     private void TryPickCrewConsole()
     {
-        // Refresh list in case CrewConsoles were added/removed at runtime
-        allCrewConsoles = FindObjectsByType<CrewConsole>(FindObjectsSortMode.None);
+        // Determine which stat types are in need (below 50).
+        // Agents only seek a console if at least one stat is low.
+        bool needX = valueX < 50f;
+        bool needY = valueY < 50f;
+        bool needZ = valueZ < 50f;
 
-        // Build a list of unreserved CrewConsoles that this agent can actually reach.
-        // CalculatePath checks the NavMesh without moving the agent — PathComplete means
-        // a full route exists. Consoles outside the room (off the NavMesh) return
-        // PathInvalid or PathPartial and are excluded.
-        var available = new List<CrewConsole>();
-        var path = new NavMeshPath();
-        foreach (var CrewConsole in allCrewConsoles)
+        if (!needX && !needY && !needZ)
         {
-            if (CrewConsole.Reserved) continue;
-
-            navAgent.CalculatePath(CrewConsole.transform.position, path);
-            if (path.status == NavMeshPathStatus.PathComplete)
-                available.Add(CrewConsole);
-        }
-
-        if (available.Count == 0)
-        {
-            // All CrewConsoles busy — stay idle and try again after delay
+            // All stats are healthy — stay idle and wander instead.
             currentState = AgentState.Idle;
             return;
         }
 
-        // Pick randomly from available CrewConsoles
-        CrewConsole target = available[Random.Range(0, available.Count)];
+        // Refresh list in case CrewConsoles were added/removed at runtime.
+        allCrewConsoles = FindObjectsByType<CrewConsole>(FindObjectsSortMode.None);
 
-         Debug.Log($"[{name}]  Attempting to reserve CrewConsole {target.name}. Current reserved state: {target.Reserved}");
+        // Build a list of unreserved consoles whose type matches a stat this agent needs
+        // AND that this agent can actually reach on the NavMesh.
+        var available = new List<CrewConsole>();
+        var path = new NavMeshPath();
+        foreach (var console in allCrewConsoles)
+        {
+            if (console.Reserved) continue;
+
+            // Only consider consoles that address a stat below 50.
+            bool consoleIsNeeded =
+                (console.CrewConsoleType == CrewConsoleType.X && needX) ||
+                (console.CrewConsoleType == CrewConsoleType.Y && needY) ||
+                (console.CrewConsoleType == CrewConsoleType.Z && needZ);
+
+            if (!consoleIsNeeded) continue;
+
+            navAgent.CalculatePath(console.transform.position, path);
+            if (path.status == NavMeshPathStatus.PathComplete)
+                available.Add(console);
+        }
+
+        if (available.Count == 0)
+        {
+            // No reachable console for a needed stat — stay idle and try again later.
+            currentState = AgentState.Idle;
+            return;
+        }
+
+        // Prefer the console that matches the lowest stat so the most urgent need is
+        // addressed first. Among ties, pick randomly.
+        available.Sort((a, b) =>
+        {
+            float aVal = StatValueForType(a.CrewConsoleType);
+            float bVal = StatValueForType(b.CrewConsoleType);
+            return aVal.CompareTo(bVal); // ascending: most urgent first
+        });
+
+        // Build a shortlist of consoles tied for most urgent, then pick randomly from them.
+        float lowestVal = StatValueForType(available[0].CrewConsoleType);
+        var topNeed = available.FindAll(c => Mathf.Approximately(StatValueForType(c.CrewConsoleType), lowestVal));
+        CrewConsole target = topNeed[Random.Range(0, topNeed.Count)];
 
         if (target.TryReserve())
         {
-            Debug.Log($"[{name}]  Successfully reserved CrewConsole {target.name}. Current reserved state: {target.Reserved}");
-            //target.Reserved = true;
             currentCrewConsole = target;
             navAgent.SetDestination(target.transform.position);
             currentState = AgentState.MovingToCrewConsole;
         }
         else
         {
-            // Race condition: another agent grabbed it — try again next idle cycle
+            // Race condition: another agent grabbed it — try again next idle cycle.
             currentState = AgentState.Idle;
         }
+    }
+
+    /// <summary>Returns this agent's current value for the given console type.</summary>
+    private float StatValueForType(CrewConsoleType type)
+    {
+        return type switch
+        {
+            CrewConsoleType.X => valueX,
+            CrewConsoleType.Y => valueY,
+            CrewConsoleType.Z => valueZ,
+            _ => 100f
+        };
     }
 
     // -----------------------------------------------------------------------
@@ -264,7 +318,6 @@ public class AIAgent : MonoBehaviour
                 break;
         }
 
-        Debug.Log($"[{name}] Visited {CrewConsole.CrewConsoleType} CrewConsole — X:{valueX:F0}  Y:{valueY:F0}  Z:{valueZ:F0}");
     }
 
     // -----------------------------------------------------------------------
